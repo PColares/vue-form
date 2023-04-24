@@ -1,15 +1,25 @@
 <script setup>
 import BaseInput from '../components/BaseInput.vue'
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive } from 'vue'
+import { computed } from '@vue/reactivity'
 import useVuelidate from '@vuelidate/core'
-import { required, minLength, email, sameAs, helpers } from '@vuelidate/validators'
+import {
+  numeric,
+  between,
+  required,
+  minLength,
+  email,
+  sameAs,
+  helpers
+} from '@vuelidate/validators'
 
 // custom validations
-const containsUser = (value) => {
-  return value.includes('_')
-}
+// const containsUser = (value) => {
+//   return value.includes('_')
+// }
 
 const formData = reactive({
+  age: '',
   username: '',
   email: '',
   password: '',
@@ -18,56 +28,74 @@ const formData = reactive({
 
 const rules = computed(() => {
   return {
+    age: {
+      required: helpers.withMessage('Campo obrigatório', required),
+      numeric: helpers.withMessage('Campo deve ser numérico', numeric),
+      between: helpers.withMessage('Deve ser entre 1 e 99', between(1, 99))
+    },
     // custom validation messages with helpers.message
     username: {
       required: helpers.withMessage('Campo obrigatório', required),
-      minLength: helpers.withMessage('Mínimo de 10 caracteres',minLength(10)),
-      containsUser: helpers.withMessage('Deve conter _', containsUser)
+      minLength: helpers.withMessage('Mínimo de 5 caracteres', minLength(5)),
+      // containsUser: helpers.withMessage('Deve conter _', containsUser)
     },
-    email: { required: helpers.withMessage('Campo obrigatório', required), email },
-    password: { required: helpers.withMessage('Campo obrigatório', required)},
-    confirmPassword: { required: helpers.withMessage('Campo obrigatório', required), sameAs: helpers.withMessage('Senhas devem ser iguais', sameAs(formData.password)) }
+    email: {
+      required: helpers.withMessage('Campo obrigatório', required),
+      email: helpers.withMessage('Campo deve conter um e-mail válido', email)
+    },
+    password: { required: helpers.withMessage('Campo obrigatório', required) },
+    confirmPassword: {
+      required: helpers.withMessage('Campo obrigatório', required),
+      sameAs: helpers.withMessage('Senhas devem ser iguais', sameAs(formData.password))
+    }
   }
 })
 
-const v$ = useVuelidate(rules, formData)
+const user$ = useVuelidate(rules, formData)
 
 const submitForm = async () => {
-  const result = await v$.value.$validate()
-  if (result) {
-    console.log('Success, form submitted !')
-    console.log('vif', v$)
-  } else {
-    console.log('error, form not submitted !')
-    console.log('v$.value', v$)
-  }
+  const result = await user$.value.$validate()
+
+  if (!result) return console.log('error, form not submitted !')
+
+  console.log('Success, form submitted !')
 }
 </script>
 
 <template>
   <body>
-    <pre>{{$v}}</pre>
+    <!-- <pre>{{ user$ }}</pre> -->
     <form @submit.prevent="submitForm">
       <div class="div-wrap">
-        <BaseInput label="Usuário" v-model="formData.username" type="text" />
-          <span v-for="x in v$.username.$errors" :key="x.$uid">
-            {{x.message}}
-          </span>
+        <label for="age">Idade</label>
+        <input
+          class="input-test"
+          v-model="formData.age"
+          @change="user$.age.$touch()"
+          type="number"
+        />
+        <span class="error" v-for="error in user$.age.$errors">{{ error.$message }}</span>
+      </div>
 
+      <div class="div-wrap">
+        <BaseInput label="Usuário" v-model="formData.username" type="text" />
+        <span class="error" v-for="error in user$.username.$errors">{{ error.$message }}</span>
       </div>
 
       <div class="div-wrap">
         <BaseInput label="E-mail" v-model="formData.email" type="email" />
-        <span v-for="error in v$.email.$errors" :key="error.$uid">{{ error.$message }}</span>
+        <span v-for="error in user$.email.$errors" :key="error.$uid">{{ error.$message }}</span>
       </div>
 
       <div class="div-wrap">
         <BaseInput label="Senha" v-model="formData.password" type="password" />
-        <span v-for="error in v$.password.$errors" :key="error.$uid">{{ error.$message }}</span>
+        <span v-for="error in user$.password.$errors" :key="error.$uid">{{ error.$message }}</span>
       </div>
       <div class="div-wrap">
         <BaseInput label="Confirmar Senha" v-model="formData.confirmPassword" type="password" />
-        <span v-for="error in v$.confirmPassword.$errors" :key="error.$uid">{{error.$message}}</span>
+        <span v-for="error in user$.confirmPassword.$errors" :key="error.$uid">{{
+          error.$message
+        }}</span>
       </div>
 
       <button type="submit">Criar usuário</button>
@@ -100,6 +128,15 @@ span {
 }
 
 .div-wrap {
-  height: 100px;
+  height: 80px;
+}
+
+.input-test {
+  display: flex;
+  width: 100%;
+  font-size: 16px;
+  padding: 0.25rem;
+  border-radius: 6px;
+  border: none;
 }
 </style>
